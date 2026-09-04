@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Dapper;
 using MiApiCuadrado.Models;
 
 namespace MiApiCuadrado.Controllers;
@@ -18,29 +19,25 @@ public class ProductosController : ControllerBase
     [HttpGet]
     public IActionResult GetProductos()
     {
-        var productos = new List<Producto>();
         string connectionString = _configuration.GetConnectionString("SomeeConnection")!;
 
-        using (SqlConnection connection = new SqlConnection(connectionString))
+        using (var connection = new SqlConnection(connectionString))
         {
-            connection.Open();
-            string query = "SELECT Id, Nombre, Precio FROM Productos";
-
-            using (SqlCommand command = new SqlCommand(query, connection))
-            using (SqlDataReader reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    productos.Add(new Producto
-                    {
-                        Id = reader.GetInt32(0),
-                        Nombre = reader.GetString(1),
-                        Precio = reader.GetDecimal(2)
-                    });
-                }
-            }
+            var productos = connection.Query<Producto>("SELECT Id, Nombre, Precio FROM Productos");
+            return Ok(productos);
         }
+    }
 
-        return Ok(productos);
+    [HttpPost]
+    public IActionResult CrearProducto([FromBody] Producto producto)
+    {
+        string connectionString = _configuration.GetConnectionString("SomeeConnection")!;
+
+        using (var connection = new SqlConnection(connectionString))
+        {
+            string query = "INSERT INTO Productos (Nombre, Precio) VALUES (@Nombre, @Precio)";
+            connection.Execute(query, new { producto.Nombre, producto.Precio });
+            return Ok("Producto creado correctamente.");
+        }
     }
 }
